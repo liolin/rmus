@@ -1,4 +1,5 @@
-CREATE TABLE artists (
+-- Add up migration script here
+CREATE TABLE albums (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   name VARCHAR NOT NULL UNIQUE
 );
