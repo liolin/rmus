@@ -3,7 +3,10 @@ extern crate log;
 
 use anyhow::Result;
 use dotenv::dotenv;
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use sqlx::{
+    sqlite::{SqlitePoolOptions, SqliteRow},
+    Row, SqlitePool,
+};
 use std::{collections::HashMap, env};
 use std::{fs, path::PathBuf};
 
@@ -17,6 +20,13 @@ struct Artist {
 struct Album {
     id: i64,
     name: String,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+struct Track {
+    id: i64,
+    title: String,
+    album: Album,
 }
 
 #[async_std::main]
@@ -41,7 +51,8 @@ async fn build_database_from_dir(music_dir: &String, db_uri: &String) -> Result<
     for file in all_files {
         let reader = claxon::FlacReader::open(file)?;
         let artists = reader.get_tag("artist").collect::<Vec<_>>();
-        let albums = reader.get_tag("album").collect::<Vec<_>>();
+        let album = reader.get_tag("album").collect::<String>();
+        let title = reader.get_tag("title").collect::<String>();
 
         for artist in artists {
             if !all_artists.contains_key(artist) {
@@ -49,15 +60,14 @@ async fn build_database_from_dir(music_dir: &String, db_uri: &String) -> Result<
             }
         }
 
-        for album in albums {
-            if !all_albums.contains_key(album) {
-                all_albums.insert(album.to_owned(), insert_album_in_db(album, &pool).await?);
-            }
+        if !all_albums.contains_key(&album) {
+            let a = insert_album_in_db(&album, &pool).await?;
+            all_albums.insert(album.clone(), a);
         }
+
+        insert_track_in_db(&title, all_albums.get(&album).unwrap(), &pool).await?;
     }
 
-    println!("{:?}", all_artists);
-    println!("{:?}", all_albums);
     Ok(())
 }
 
@@ -116,6 +126,53 @@ async fn insert_album_in_db(album: &str, pool: &SqlitePool) -> Result<Album> {
     };
 
     return Ok(a);
+}
+
+async fn insert_track_in_db(track: &str, album: &Album, pool: &SqlitePool) -> Result<Track> {
+    let queryed_track = sqlx::query(
+        "SELECT trackId, title, albumId, album FROM v_tracks WHERE title = ? AND albumId = ?;",
+    )
+    .bind(track)
+    .bind(album.id)
+    .map(row_to_track)
+    .fetch_optional(pool)
+    .await?;
+
+    let a = match queryed_track {
+        Some(a) => {
+            info!("Track {} in Database", track);
+            a
+        }
+        None => {
+            info!("Track {} not in Database. Create it", track);
+            sqlx::query("INSERT INTO tracks (title, album) VALUES (?, ?); SELECT trackId, title, albumId, album FROM v_tracks WHERE title = ? AND albumId = ?;")
+                .bind(track)
+                .bind(album.id)
+                .bind(track)
+                .bind(album.id)
+                .map(row_to_track)
+                .fetch_one(pool)
+                .await?
+        }
+    };
+
+    return Ok(a);
+}
+
+fn row_to_track(row: SqliteRow) -> Track {
+    let track_id = row.get("trackId");
+    let title = row.get("title");
+    let album_id = row.get("albumId");
+    let album = row.get("album");
+
+    Track {
+        id: track_id,
+        title,
+        album: Album {
+            id: album_id,
+            name: album,
+        },
+    }
 }
 
 fn find_files(path: &str) -> Result<Vec<PathBuf>> {
