@@ -18,6 +18,7 @@ pub struct Track {
     pub id: i64,
     pub title: String,
     pub album: Album,
+    pub file_path: String,
 }
 
 impl Artist {
@@ -82,9 +83,14 @@ impl Album {
 }
 
 impl Track {
-    pub async fn insert_into_db(track: &str, album: &Album, pool: &SqlitePool) -> Result<Track> {
+    pub async fn insert_into_db(
+        track: &str,
+        album: &Album,
+        file_path: &String,
+        pool: &SqlitePool,
+    ) -> Result<Track> {
         let queryed_track = sqlx::query_as(
-            "SELECT trackId, title, albumId, album FROM v_tracks WHERE title = ? AND albumId = ?;",
+            "SELECT trackId, title, albumId, album, filePath FROM v_tracks WHERE title = ? AND albumId = ?;",
         )
         .bind(track)
         .bind(album.id)
@@ -98,9 +104,10 @@ impl Track {
             }
             None => {
                 info!("Track {} not in Database. Create it", track);
-                sqlx::query_as("INSERT INTO tracks (title, album) VALUES (?, ?); SELECT trackId, title, albumId, album FROM v_tracks WHERE title = ? AND albumId = ?;")
+                sqlx::query_as("INSERT INTO tracks (title, album, filePath) VALUES (?, ?, ?); SELECT trackId, title, albumId, album, filePath FROM v_tracks WHERE title = ? AND albumId = ?;")
                 .bind(track)
                 .bind(album.id)
+                .bind(file_path)
                 .bind(track)
                 .bind(album.id)
                 .fetch_one(pool)
@@ -118,6 +125,7 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
         let title = row.try_get("title")?;
         let album_id = row.try_get("albumId")?;
         let album = row.try_get("album")?;
+        let file_path = row.try_get("filePath")?;
 
         Ok(Track {
             id: track_id,
@@ -126,6 +134,7 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
                 id: album_id,
                 name: album,
             },
+            file_path,
         })
     }
 }

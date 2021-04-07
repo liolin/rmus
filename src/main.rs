@@ -30,8 +30,9 @@ async fn build_database_from_dir(music_dir: &String, db_uri: &String) -> Result<
 
     let mut all_artists = HashMap::new();
     let mut all_albums = HashMap::new();
+
     for file in all_files {
-        let reader = claxon::FlacReader::open(file)?;
+        let reader = claxon::FlacReader::open(&file)?;
         let artists = reader.get_tag("artist").collect::<Vec<_>>();
         let album = reader.get_tag("album").collect::<String>();
         let title = reader.get_tag("title").collect::<String>();
@@ -50,7 +51,15 @@ async fn build_database_from_dir(music_dir: &String, db_uri: &String) -> Result<
             all_albums.insert(album.clone(), a);
         }
 
-        Track::insert_into_db(&title, all_albums.get(&album).unwrap(), &pool).await?;
+        let track = Track::insert_into_db(
+            &title,
+            all_albums.get(&album).unwrap(),
+            &file.into_os_string().into_string().unwrap(),
+            &pool,
+        )
+        .await?;
+
+        println!("{:#?}\n", track);
     }
 
     Ok(())
