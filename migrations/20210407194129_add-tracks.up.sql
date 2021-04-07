@@ -4,5 +4,5 @@ CREATE TABLE tracks (
   title VARCHAR NOT NULL,
   album INTEGER NOT NULL,
 
-  FOREIGN KEY(album) REFERENCES album(id)
+  FOREIGN KEY(album) REFERENCES albums(id)
 );
