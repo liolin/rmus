@@ -1509,7 +1509,9 @@ dependencies = [
  "claxon",
  "dotenv",
  "env_logger",
+ "hex",
  "log",
+ "rand",
  "rodio",
  "sqlx",
 ]

@@ -138,3 +138,31 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::test_helpers;
+    use async_std::task;
+    use sqlx::{sqlite::SqlitePoolOptions, Connection, SqliteConnection};
+
+    use super::*;
+
+    #[test]
+    fn test_artist_insert_into_db() {
+        test_helpers::test_against_database(|database_url| {
+            task::block_on(async {
+                let pool = SqlitePoolOptions::new()
+                    .connect(database_url)
+                    .await
+                    .unwrap();
+                let artist = Artist {
+                    id: 1,
+                    name: String::from("Epica"),
+                };
+
+                let artist_from_db = Artist::insert_into_db(&artist.name, &pool).await.unwrap();
+                assert_eq!(artist.name, artist_from_db.name);
+            });
+        });
+    }
+}

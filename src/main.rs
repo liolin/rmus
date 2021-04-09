@@ -8,6 +8,8 @@ use std::{collections::HashMap, env};
 use std::{fs, path::PathBuf};
 
 mod models;
+#[cfg(test)]
+mod test_helpers;
 
 use crate::models::{Album, Artist, Track};
 
