@@ -104,6 +104,16 @@ impl Track {
             }
             None => {
                 info!("Track {} not in Database. Create it", track);
+
+                let _: Album = sqlx::query_as!(
+                    Album,
+                    "SELECT id, name FROM albums WHERE id = ? AND name = ?;",
+                    album.id,
+                    album.name
+                )
+                .fetch_one(pool)
+                .await?;
+
                 sqlx::query_as("INSERT INTO tracks (title, album, filePath) VALUES (?, ?, ?); SELECT trackId, title, albumId, album, filePath FROM v_tracks WHERE title = ? AND albumId = ?;")
                 .bind(track)
                 .bind(album.id)
@@ -143,7 +153,7 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
 mod test {
     use crate::test_helpers;
     use async_std::task;
-    use sqlx::{sqlite::SqlitePoolOptions, Connection, SqliteConnection};
+    use sqlx::sqlite::SqlitePoolOptions;
 
     use super::*;
 
@@ -162,6 +172,89 @@ mod test {
 
                 let artist_from_db = Artist::insert_into_db(&artist.name, &pool).await.unwrap();
                 assert_eq!(artist.name, artist_from_db.name);
+            });
+        });
+    }
+
+    #[test]
+    fn test_album_insert_into_db() {
+        test_helpers::test_against_database(|database_url| {
+            task::block_on(async {
+                let pool = SqlitePoolOptions::new()
+                    .connect(database_url)
+                    .await
+                    .unwrap();
+                let album = Album {
+                    id: 1,
+                    name: String::from("Omega"),
+                };
+
+                let album_from_db = Album::insert_into_db(&album.name, &pool).await.unwrap();
+                assert_eq!(album.name, album_from_db.name);
+            });
+        });
+    }
+
+    #[test]
+    fn test_track_insert_into_db_with_existing_album() {
+        test_helpers::test_against_database(|database_url| {
+            task::block_on(async {
+                let pool = SqlitePoolOptions::new()
+                    .connect(database_url)
+                    .await
+                    .unwrap();
+
+                let track = Track {
+                    id: 1,
+                    title: String::from("Alpha – Anteludium"),
+                    album: Album {
+                        id: 1,
+                        name: String::from("Omega"),
+                    },
+                    file_path: String::from("/music/epica/alpah.flac"),
+                };
+
+                let album_from_db = Album::insert_into_db(&track.album.name, &pool)
+                    .await
+                    .unwrap();
+                assert_eq!(track.album.name, album_from_db.name);
+
+                let track_from_db =
+                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
+                        .await
+                        .unwrap();
+                assert_eq!(track.title, track_from_db.title);
+            });
+        });
+    }
+
+    #[test]
+    fn test_track_insert_into_db_with_non_existing_album() {
+        test_helpers::test_against_database(|database_url| {
+            task::block_on(async {
+                let pool = SqlitePoolOptions::new()
+                    .connect(database_url)
+                    .await
+                    .unwrap();
+
+                let track = Track {
+                    id: 1,
+                    title: String::from("Alpha – Anteludium"),
+                    album: Album {
+                        id: 1,
+                        name: String::from("Omega"),
+                    },
+                    file_path: String::from("/music/epica/alpah.flac"),
+                };
+
+                let track_from_db =
+                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
+                        .await;
+                assert_eq!(
+                    track_from_db.err().unwrap().to_string(),
+                    "no rows returned by a query that expected to return at least one row"
+                        .to_string()
+                );
             });
         });
     }
