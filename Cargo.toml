@@ -13,6 +13,9 @@ async-std = { version = "1.6", features = [ "attributes" ] }
 rodio = "0.13.1"
 claxon = "0.4.3"
 
+tui = "0.14.0"
+termion = "1.5"
+
 dotenv = "0.15.0"
 anyhow = "1.0.40"
 log = "0.4.14"
