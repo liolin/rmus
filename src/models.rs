@@ -127,6 +127,15 @@ impl Track {
 
         return Ok(a);
     }
+
+    pub async fn select_all(pool: &SqlitePool) -> Result<Vec<Track>> {
+        let all_tracks =
+            sqlx::query_as("SELECT trackId, title, albumId, album, filePath FROM v_tracks;")
+                .fetch_all(pool)
+                .await?;
+
+        Ok(all_tracks)
+    }
 }
 
 impl<'r> FromRow<'r, SqliteRow> for Track {
