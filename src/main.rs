@@ -3,9 +3,29 @@ extern crate log;
 
 use anyhow::Result;
 use dotenv::dotenv;
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::{collections::HashMap, env};
 use std::{fs, path::PathBuf};
+
+use std::io;
+use termion::{
+    event::{Event, Key},
+    input::Events,
+    raw::IntoRawMode,
+};
+use tui::Terminal;
+use tui::{
+    backend::TermionBackend,
+    widgets::{List, ListItem},
+};
+use tui::{
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+};
+use tui::{
+    text::Span,
+    widgets::{Block, Borders, ListState, Widget},
+};
 
 mod models;
 #[cfg(test)]
@@ -13,18 +33,84 @@ mod test_helpers;
 
 use crate::models::{Album, Artist, Track};
 
+struct StatefulList<T> {
+    state: ListState,
+    items: Vec<T>,
+}
+
+impl<T> StatefulList<T> {
+    fn unselect(&mut self) {
+        self.state.select(None);
+    }
+
+    fn next(&mut self) {
+        if let Some(i) = self.state.selected() {
+            self.state.select(Some(i + 1));
+        }
+    }
+
+    fn previous(&mut self) {
+        if let Some(i) = self.state.selected() {
+            self.state.select(Some(i - 1));
+        }
+    }
+}
+
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     env_logger::init();
     let music_dir = env::var("MUSIC_DIR").unwrap();
     let db_uri = env::var("DATABASE_URL").unwrap();
-    build_database_from_dir(&music_dir, &db_uri).await?;
+    let pool = SqlitePoolOptions::new().connect(&db_uri).await?;
+
+    let n = env::args();
+
+    if n.len() > 1 {
+        info!("Init database");
+        build_database_from_dir(&music_dir, &pool).await?;
+    }
+
+    // INIT UI
+    let stdout = io::stdout().into_raw_mode()?;
+    let backend = TermionBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let items = Track::select_all(&pool).await.unwrap();
+    let mut state = ListState::default();
+    state.select(Some(1));
+    let mut state_full_list = StatefulList { state, items };
+
+    terminal.clear().unwrap();
+
+    loop {
+        terminal
+            .draw(|f| {
+                let size = f.size();
+
+                let list_entries: Vec<ListItem> = state_full_list
+                    .items
+                    .iter()
+                    .map(|e| ListItem::new(e.title.as_str()))
+                    .collect();
+
+                let l = List::new(list_entries)
+                    .block(Block::default().title("List").borders(Borders::ALL))
+                    .style(Style::default().fg(Color::White))
+                    .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+                    .highlight_symbol(">>");
+
+                f.render_stateful_widget(l, size, &mut state_full_list.state);
+            })
+            .unwrap();
+
+        // TODO Event parsing
+    }
+
     Ok(())
 }
 
-async fn build_database_from_dir(music_dir: &String, db_uri: &String) -> Result<()> {
-    let pool = SqlitePoolOptions::new().connect(db_uri).await?;
+async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Result<()> {
     let all_files = find_files(music_dir)?
         .into_iter()
         .filter(|f| f.extension().unwrap() == "flac")
