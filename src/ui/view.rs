@@ -1,4 +1,5 @@
 use tui::{
+    layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, List, ListItem},
     Frame,
@@ -15,20 +16,28 @@ pub fn render_track<T>(frame: &mut Frame<T>, app: &mut App)
 where
     T: tui::backend::Backend,
 {
-    let size = frame.size();
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
+        .split(frame.size());
 
     let list_entries: Vec<ListItem> = app
         .tracks
         .items
         .iter()
-        .map(|e| ListItem::new(e.title.as_str()))
+        .map(|e| ListItem::new(format!("{} - {}", e.title.as_str(), e.album.name.as_str())))
         .collect();
 
-    let l = List::new(list_entries)
-        .block(Block::default().title("List").borders(Borders::ALL))
+    let tracks = List::new(list_entries)
+        .block(Block::default().title("Track").borders(Borders::ALL))
         .style(Style::default().fg(Color::White))
         .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
         .highlight_symbol(">>");
 
-    frame.render_stateful_widget(l, size, &mut app.tracks.state);
+    let block = Block::default()
+        .title("Artist / Album ")
+        .borders(Borders::ALL);
+
+    frame.render_stateful_widget(tracks, chunks[1], &mut app.tracks.state);
+    frame.render_widget(block, chunks[0]);
 }
