@@ -122,7 +122,7 @@ async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Resul
 
         if let Ok(path) = &file.into_os_string().into_string() {
             let track =
-                Track::insert_into_db(&title, all_albums.get(&album).unwrap(), &pool).await?;
+                Track::insert_into_db(&title, all_albums.get(&album).unwrap(), path, &pool).await?;
             println!("{:#?}\n", track);
         } else {
             warn!("Could not convert a file path to a string");
