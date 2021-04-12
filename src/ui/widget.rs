@@ -7,6 +7,21 @@ pub struct StatefulList<T> {
 }
 
 impl<T> StatefulList<T> {
+    pub fn new() -> StatefulList<T> {
+        let mut state = ListState::default();
+        state.select(Some(0));
+        StatefulList {
+            items: Vec::new(),
+            state,
+        }
+    }
+
+    pub fn from_vec(items: Vec<T>) -> StatefulList<T> {
+        let mut state = ListState::default();
+        state.select(Some(0));
+        StatefulList { items, state }
+    }
+
     pub fn unselect(&mut self) {
         self.state.select(None);
     }

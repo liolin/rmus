@@ -8,7 +8,6 @@ use std::{collections::HashMap, env};
 use std::{fs, path::PathBuf};
 
 use termion::event::Key;
-use tui::widgets::ListState;
 
 use rmus::{
     model::{self, Album, Artist, Track},
@@ -35,48 +34,42 @@ async fn main() -> anyhow::Result<()> {
         build_database_from_dir(&music_dir, &pool).await?;
     }
 
-    let mut terminal = ui::init_view()?;
-    let player = Player::new();
-    let events = Events::new();
     let tracks = Track::select_all(&pool).await?;
-    let state = ListState::default();
+    let mut terminal = ui::init_view()?;
 
     let mut app = App {
-        tracks: StatefulList {
-            state,
-            items: tracks,
-        },
-        view: View::TrackView,
+        view: View::Track(StatefulList::from_vec(tracks)),
         pool,
-        player,
+        player: Player::new(),
+        events: Events::new(),
     };
     terminal.clear()?;
 
     loop {
-        match app.view {
-            View::TrackView => {
-                terminal.draw(|f| view::render_track(f, &mut app))?;
-            }
-        }
+        terminal.draw(|f| view::update_view(f, &mut app))?;
 
-        match events.next()? {
+        match app.events.next()? {
             Key::Up => {
-                app.tracks.previous();
+                app.previous();
             }
             Key::Down => {
-                app.tracks.next();
+                app.next();
             }
             Key::Left => {
-                app.tracks.unselect();
+                app.unselect();
             }
             Key::Char('q') => {
                 break;
             }
+            Key::Char('1') => {
+                app.view = View::Library;
+            }
+            Key::Char('5') => {
+                let tracks = Track::select_all(&app.pool).await?;
+                app.view = View::Track(StatefulList::from_vec(tracks));
+            }
             Key::Char('\n') => {
-                if let Some(selected) = app.tracks.state.selected() {
-                    let track = &app.tracks.items[selected];
-                    app.player.play_new_track(&track.file_path);
-                }
+                app.select();
             }
             _ => {}
         }
@@ -106,7 +99,8 @@ async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Resul
         let album = reader.get_tag("album").collect::<String>();
         let title = reader.get_tag("title").collect::<String>();
 
-        for artist in artists {
+        // TODO: no clone, and other improvments
+        for artist in artists.clone() {
             if !all_artists.contains_key(artist) {
                 all_artists.insert(
                     artist.to_owned(),
@@ -121,8 +115,14 @@ async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Resul
         }
 
         if let Ok(path) = &file.into_os_string().into_string() {
-            let track =
-                Track::insert_into_db(&title, all_albums.get(&album).unwrap(), path, &pool).await?;
+            let track = Track::insert_into_db(
+                &title,
+                all_albums.get(&album).unwrap(),
+                all_artists.get(&artists[0].to_string()).unwrap(),
+                path,
+                &pool,
+            )
+            .await?;
             println!("{:#?}\n", track);
         } else {
             warn!("Could not convert a file path to a string");
