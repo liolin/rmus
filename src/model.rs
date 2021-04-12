@@ -1,5 +1,17 @@
 use anyhow::Result;
-use sqlx::{sqlite::SqliteRow, FromRow, Row, SqlitePool};
+use sqlx::{
+    sqlite::{SqlitePoolOptions, SqliteRow},
+    FromRow, Row, SqlitePool,
+};
+
+use crate::ui::{view, widget};
+
+#[derive(Debug)]
+pub struct App {
+    pub tracks: widget::StatefulList<Track>,
+    pub view: view::View,
+    pub pool: SqlitePool,
+}
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Artist {
@@ -19,6 +31,11 @@ pub struct Track {
     pub title: String,
     pub album: Album,
     pub file_path: String,
+}
+
+pub async fn establish_database_connection(db_uri: &String) -> Result<SqlitePool> {
+    let pool = SqlitePoolOptions::new().connect(db_uri).await?;
+    Ok(pool)
 }
 
 impl Artist {
