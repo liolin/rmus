@@ -275,4 +275,54 @@ mod test {
             });
         });
     }
+
+    #[test]
+    fn test_track_insert_multiple_song_into_db_with_same_album() {
+        test_helpers::test_against_database(|database_url| {
+            task::block_on(async {
+                let pool = SqlitePoolOptions::new()
+                    .connect(database_url)
+                    .await
+                    .unwrap();
+
+                let track = Track {
+                    id: 1,
+                    title: String::from("Alpha – Anteludium"),
+                    album: Album {
+                        id: 1,
+                        name: String::from("Omega"),
+                    },
+                    file_path: String::from("/music/epica/alpah.flac"),
+                };
+
+                let track2 = Track {
+                    id: 2,
+                    title: String::from("Abyss of Time – Countdown to Singularity"),
+                    album: Album {
+                        id: 1,
+                        name: String::from("Omega"),
+                    },
+                    file_path: String::from("/music/epica/abyss.flac"),
+                };
+
+                let track_from_db =
+                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
+                        .await;
+                assert_eq!(
+                    track_from_db.err().unwrap().to_string(),
+                    "no rows returned by a query that expected to return at least one row"
+                        .to_string()
+                );
+
+                let track_from_db =
+                    Track::insert_into_db(&track2.title, &track2.album, &track2.file_path, &pool)
+                        .await;
+                assert_eq!(
+                    track_from_db.err().unwrap().to_string(),
+                    "no rows returned by a query that expected to return at least one row"
+                        .to_string()
+                );
+            });
+        });
+    }
 }
