@@ -10,54 +10,16 @@ use std::{fs, path::PathBuf};
 use termion::event::Key;
 use tui::widgets::ListState;
 
-use rodio::OutputStreamHandle;
-use rodio::{Decoder, OutputStream, Sink};
-use std::fs::File;
-use std::io::BufReader;
-
-mod model;
-#[cfg(test)]
-mod test_helpers;
-mod ui;
-mod util;
-
-use crate::model::{Album, App, Artist, Track};
-use crate::ui::view::{self, View};
-use crate::ui::widget::StatefulList;
-use crate::util::Events;
-
-struct Player {
-    sink: Sink,
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-}
-
-impl Player {
-    fn new() -> Player {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-        Player {
-            sink,
-            stream,
-            stream_handle,
-        }
-    }
-
-    fn play_new_track(&mut self, path: &str) {
-        if !self.sink.empty() {
-            let (stream, stream_handle) = OutputStream::try_default().unwrap();
-            self.stream = stream;
-            self.stream_handle = stream_handle;
-            self.sink = Sink::try_new(&self.stream_handle).unwrap();
-        }
-
-        let file = BufReader::new(File::open(path).unwrap());
-        let source = Decoder::new(file).unwrap();
-
-        self.sink.append(source);
-        self.sink.play();
-    }
-}
+use rmus::{
+    model::{self, Album, Artist, Track},
+    ui::{
+        self,
+        view::{self, View},
+        widget::StatefulList,
+    },
+    util::Events,
+    App, Player,
+};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -73,9 +35,11 @@ async fn main() -> anyhow::Result<()> {
         build_database_from_dir(&music_dir, &pool).await?;
     }
 
+    let mut terminal = ui::init_view()?;
+    let player = Player::new();
+    let events = Events::new();
     let tracks = Track::select_all(&pool).await?;
-    let mut state = ListState::default();
-    state.select(Some(1));
+    let state = ListState::default();
 
     let mut app = App {
         tracks: StatefulList {
@@ -84,11 +48,8 @@ async fn main() -> anyhow::Result<()> {
         },
         view: View::TrackView,
         pool,
+        player,
     };
-
-    let mut terminal = ui::init_view()?;
-    let mut player = Player::new();
-    let events = Events::new();
     terminal.clear()?;
 
     loop {
@@ -112,9 +73,10 @@ async fn main() -> anyhow::Result<()> {
                 break;
             }
             Key::Char('\n') => {
-                let selected = app.tracks.state.selected().unwrap();
-                let track = &app.tracks.items[selected];
-                player.play_new_track(&track.file_path);
+                if let Some(selected) = app.tracks.state.selected() {
+                    let track = &app.tracks.items[selected];
+                    app.player.play_new_track(&track.file_path);
+                }
             }
             _ => {}
         }
@@ -126,7 +88,13 @@ async fn main() -> anyhow::Result<()> {
 async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Result<()> {
     let all_files = find_files(music_dir)?
         .into_iter()
-        .filter(|f| f.extension().unwrap() == "flac")
+        .filter(|f| {
+            if let Some(e) = f.extension() {
+                e == "flac"
+            } else {
+                false
+            }
+        })
         .collect::<Vec<_>>();
 
     let mut all_artists = HashMap::new();
@@ -152,15 +120,13 @@ async fn build_database_from_dir(music_dir: &String, pool: &SqlitePool) -> Resul
             all_albums.insert(album.clone(), a);
         }
 
-        let track = Track::insert_into_db(
-            &title,
-            all_albums.get(&album).unwrap(),
-            &file.into_os_string().into_string().unwrap(),
-            &pool,
-        )
-        .await?;
-
-        println!("{:#?}\n", track);
+        if let Ok(path) = &file.into_os_string().into_string() {
+            let track =
+                Track::insert_into_db(&title, all_albums.get(&album).unwrap(), &pool).await?;
+            println!("{:#?}\n", track);
+        } else {
+            warn!("Could not convert a file path to a string");
+        }
     }
 
     Ok(())

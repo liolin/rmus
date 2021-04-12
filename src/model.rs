@@ -4,15 +4,6 @@ use sqlx::{
     FromRow, Row, SqlitePool,
 };
 
-use crate::ui::{view, widget};
-
-#[derive(Debug)]
-pub struct App {
-    pub tracks: widget::StatefulList<Track>,
-    pub view: view::View,
-    pub pool: SqlitePool,
-}
-
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Artist {
     pub id: i64,

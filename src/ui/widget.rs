@@ -14,12 +14,16 @@ impl<T> StatefulList<T> {
     pub fn next(&mut self) {
         if let Some(i) = self.state.selected() {
             self.state.select(Some(i + 1));
+        } else {
+            self.state.select(Some(0));
         }
     }
 
     pub fn previous(&mut self) {
         if let Some(i) = self.state.selected() {
             self.state.select(Some(i - 1));
+        } else {
+            self.state.select(Some(0));
         }
     }
 }
