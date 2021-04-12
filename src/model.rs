@@ -21,6 +21,7 @@ pub struct Track {
     pub id: i64,
     pub title: String,
     pub album: Album,
+    pub artist: Artist,
     pub file_path: String,
 }
 
@@ -94,11 +95,12 @@ impl Track {
     pub async fn insert_into_db(
         track: &str,
         album: &Album,
+        artist: &Artist,
         file_path: &String,
         pool: &SqlitePool,
     ) -> Result<Track> {
         let queryed_track = sqlx::query_as(
-            "SELECT trackId, title, albumId, album, filePath FROM v_tracks WHERE title = ? AND albumId = ?;",
+            "SELECT trackId, title, albumId, album, artistId, artist, filePath FROM v_tracks WHERE title = ? AND albumId = ?;",
         )
         .bind(track)
         .bind(album.id)
@@ -122,9 +124,10 @@ impl Track {
                 .fetch_one(pool)
                 .await?;
 
-                sqlx::query_as("INSERT INTO tracks (title, album, filePath) VALUES (?, ?, ?); SELECT trackId, title, albumId, album, filePath FROM v_tracks WHERE title = ? AND albumId = ?;")
+                sqlx::query_as("INSERT INTO tracks (title, album, artist, filePath) VALUES (?, ?, ?, ?); SELECT trackId, title, albumId, album, artistId, artist, filePath FROM v_tracks WHERE title = ? AND albumId = ?;")
                 .bind(track)
                 .bind(album.id)
+                .bind(artist.id)
                 .bind(file_path)
                 .bind(track)
                 .bind(album.id)
@@ -137,10 +140,11 @@ impl Track {
     }
 
     pub async fn select_all(pool: &SqlitePool) -> Result<Vec<Track>> {
-        let all_tracks =
-            sqlx::query_as("SELECT trackId, title, albumId, album, filePath FROM v_tracks;")
-                .fetch_all(pool)
-                .await?;
+        let all_tracks = sqlx::query_as(
+            "SELECT trackId, title, albumId, album, artistId, artist, filePath FROM v_tracks;",
+        )
+        .fetch_all(pool)
+        .await?;
 
         Ok(all_tracks)
     }
@@ -152,6 +156,8 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
         let title = row.try_get("title")?;
         let album_id = row.try_get("albumId")?;
         let album = row.try_get("album")?;
+        let artist_id = row.try_get("artistId")?;
+        let artist = row.try_get("artist")?;
         let file_path = row.try_get("filePath")?;
 
         Ok(Track {
@@ -160,6 +166,10 @@ impl<'r> FromRow<'r, SqliteRow> for Track {
             album: Album {
                 id: album_id,
                 name: album,
+            },
+            artist: Artist {
+                id: artist_id,
+                name: artist,
             },
             file_path,
         })
@@ -228,6 +238,10 @@ mod test {
                         id: 1,
                         name: String::from("Omega"),
                     },
+                    artist: Artist {
+                        id: 1,
+                        name: String::from("Epica"),
+                    },
                     file_path: String::from("/music/epica/alpah.flac"),
                 };
 
@@ -236,10 +250,20 @@ mod test {
                     .unwrap();
                 assert_eq!(track.album.name, album_from_db.name);
 
-                let track_from_db =
-                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
-                        .await
-                        .unwrap();
+                let artist_from_db = Artist::insert_into_db(&track.artist.name, &pool)
+                    .await
+                    .unwrap();
+                assert_eq!(track.artist.name, artist_from_db.name);
+
+                let track_from_db = Track::insert_into_db(
+                    &track.title,
+                    &track.album,
+                    &track.artist,
+                    &track.file_path,
+                    &pool,
+                )
+                .await
+                .unwrap();
                 assert_eq!(track.title, track_from_db.title);
             });
         });
@@ -261,12 +285,21 @@ mod test {
                         id: 1,
                         name: String::from("Omega"),
                     },
+                    artist: Artist {
+                        id: 1,
+                        name: String::from("Epica"),
+                    },
                     file_path: String::from("/music/epica/alpah.flac"),
                 };
 
-                let track_from_db =
-                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
-                        .await;
+                let track_from_db = Track::insert_into_db(
+                    &track.title,
+                    &track.album,
+                    &track.artist,
+                    &track.file_path,
+                    &pool,
+                )
+                .await;
                 assert_eq!(
                     track_from_db.err().unwrap().to_string(),
                     "no rows returned by a query that expected to return at least one row"
@@ -293,6 +326,10 @@ mod test {
                         name: String::from("Omega"),
                     },
                     file_path: String::from("/music/epica/alpah.flac"),
+                    artist: Artist {
+                        id: 1,
+                        name: String::from("Epica"),
+                    },
                 };
 
                 let track2 = Track {
@@ -302,21 +339,35 @@ mod test {
                         id: 1,
                         name: String::from("Omega"),
                     },
+                    artist: Artist {
+                        id: 1,
+                        name: String::from("Epica"),
+                    },
                     file_path: String::from("/music/epica/abyss.flac"),
                 };
 
-                let track_from_db =
-                    Track::insert_into_db(&track.title, &track.album, &track.file_path, &pool)
-                        .await;
+                let track_from_db = Track::insert_into_db(
+                    &track.title,
+                    &track.album,
+                    &track.artist,
+                    &track.file_path,
+                    &pool,
+                )
+                .await;
                 assert_eq!(
                     track_from_db.err().unwrap().to_string(),
                     "no rows returned by a query that expected to return at least one row"
                         .to_string()
                 );
 
-                let track_from_db =
-                    Track::insert_into_db(&track2.title, &track2.album, &track2.file_path, &pool)
-                        .await;
+                let track_from_db = Track::insert_into_db(
+                    &track2.title,
+                    &track2.album,
+                    &track2.artist,
+                    &track2.file_path,
+                    &pool,
+                )
+                .await;
                 assert_eq!(
                     track_from_db.err().unwrap().to_string(),
                     "no rows returned by a query that expected to return at least one row"
