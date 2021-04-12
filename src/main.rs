@@ -7,16 +7,19 @@ use sqlx::SqlitePool;
 use std::{collections::HashMap, env};
 use std::{fs, path::PathBuf};
 
+use termion::event::Key;
 use tui::widgets::ListState;
 
 mod model;
 #[cfg(test)]
 mod test_helpers;
 mod ui;
+mod util;
 
 use crate::model::{Album, App, Artist, Track};
 use crate::ui::view::{self, View};
 use crate::ui::widget::StatefulList;
+use crate::util::Events;
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -46,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut terminal = ui::init_view()?;
+    let events = Events::new();
     terminal.clear()?;
 
     loop {
@@ -55,7 +59,26 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        // TODO Event parsing
+        match events.next()? {
+            Key::Up => {
+                app.tracks.previous();
+            }
+            Key::Down => {
+                app.tracks.next();
+            }
+            Key::Left => {
+                app.tracks.unselect();
+            }
+            Key::Char('q') => {
+                break;
+            }
+            Key::Char('\n') => {
+                let selected = app.tracks.state.selected().unwrap();
+                let track = &app.tracks.items[selected];
+                println!("Play {}", track.title)
+            }
+            _ => {}
+        }
     }
 
     Ok(())
