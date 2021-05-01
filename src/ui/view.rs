@@ -5,9 +5,9 @@ use tui::{
     Frame,
 };
 
+use crate::app::App;
 use crate::model::{Artist, Track};
 use crate::ui::widget::StatefulList;
-use crate::App;
 
 #[derive(Debug)]
 pub enum View {

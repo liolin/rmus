@@ -10,14 +10,15 @@ use std::{fs, path::PathBuf};
 use termion::event::Key;
 
 use rmus::{
+    app::App,
     model::{self, Album, Artist, Track},
+    player::Player,
     ui::{
         self,
         view::{self, View},
         widget::StatefulList,
     },
     util::Events,
-    App, Player,
 };
 
 #[async_std::main]
