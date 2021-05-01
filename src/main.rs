@@ -59,6 +59,9 @@ async fn main() -> anyhow::Result<()> {
             Key::Left => {
                 app.unselect();
             }
+            Key::Char('c') => {
+                app.toggle_pause();
+            }
             Key::Char('q') => {
                 break;
             }

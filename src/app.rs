@@ -60,4 +60,8 @@ impl App {
             }
         }
     }
+
+    pub fn toggle_pause(&mut self) {
+        self.player.toggle_pause();
+    }
 }

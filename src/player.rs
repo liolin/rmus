@@ -34,4 +34,12 @@ impl Player {
         self.sink.append(source);
         self.sink.play();
     }
+
+    pub fn toggle_pause(&mut self) {
+        if self.sink.is_paused() {
+            self.sink.play();
+        } else {
+            self.sink.pause();
+        }
+    }
 }
