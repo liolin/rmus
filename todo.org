@@ -1,0 +1,3 @@
+* TODO Clean up code
+** TODO Write Traits for more flexibility
+- With a player trait (or similiar) I can change the library without changing the implementation
