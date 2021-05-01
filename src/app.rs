@@ -5,14 +5,14 @@ use crate::{
 };
 use sqlx::SqlitePool;
 
-pub struct App {
+pub struct App<P: Player> {
     pub view: view::View,
     pub pool: SqlitePool,
-    pub player: Player,
+    pub player: P,
     pub events: Events,
 }
 
-impl App {
+impl<P: Player> App<P> {
     pub fn previous(&mut self) {
         match &mut self.view {
             View::Track(list) => {

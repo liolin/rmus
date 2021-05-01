@@ -11,6 +11,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls", "sqlite" 
 async-std = { version = "1.6", features = [ "attributes" ] }
 
 rodio = "0.13"
+cpal = "0.13"
 claxon = "0.4"
 
 tui = "0.14"

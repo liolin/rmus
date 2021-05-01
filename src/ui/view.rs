@@ -5,9 +5,9 @@ use tui::{
     Frame,
 };
 
-use crate::app::App;
 use crate::model::{Artist, Track};
 use crate::ui::widget::StatefulList;
+use crate::{app::App, player::Player};
 
 #[derive(Debug)]
 pub enum View {
@@ -15,7 +15,7 @@ pub enum View {
     Track(StatefulList<Track>),
 }
 
-pub fn update_view<T>(frame: &mut Frame<T>, app: &mut App)
+pub fn update_view<T, P: Player>(frame: &mut Frame<T>, app: &mut App<P>)
 where
     T: tui::backend::Backend,
 {

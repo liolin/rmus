@@ -3,24 +3,31 @@ use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
 
-pub struct Player {
+pub trait Player {
+    fn play_new_track(&mut self, path: &str);
+    fn toggle_pause(&mut self);
+}
+
+pub struct RodioPlayer {
     sink: Sink,
     stream: OutputStream,
     stream_handle: OutputStreamHandle,
 }
 
-impl Player {
-    pub fn new() -> Player {
+impl RodioPlayer {
+    pub fn new() -> RodioPlayer {
         let (stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
-        Player {
+        RodioPlayer {
             sink,
             stream,
             stream_handle,
         }
     }
+}
 
-    pub fn play_new_track(&mut self, path: &str) {
+impl Player for RodioPlayer {
+    fn play_new_track(&mut self, path: &str) {
         if !self.sink.empty() {
             let (stream, stream_handle) = OutputStream::try_default().unwrap();
             self.stream = stream;
@@ -35,7 +42,7 @@ impl Player {
         self.sink.play();
     }
 
-    pub fn toggle_pause(&mut self) {
+    fn toggle_pause(&mut self) {
         if self.sink.is_paused() {
             self.sink.play();
         } else {

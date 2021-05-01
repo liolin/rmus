@@ -12,7 +12,7 @@ use termion::event::Key;
 use rmus::{
     app::App,
     model::{self, Album, Artist, Track},
-    player::Player,
+    player::RodioPlayer,
     ui::{
         self,
         view::{self, View},
@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
     let mut app = App {
         view: View::Track(StatefulList::from_vec(tracks)),
         pool,
-        player: Player::new(),
+        player: RodioPlayer::new(),
         events: Events::new(),
     };
     terminal.clear()?;
