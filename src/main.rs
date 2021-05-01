@@ -62,7 +62,12 @@ async fn main() -> anyhow::Result<()> {
                 break;
             }
             Key::Char('1') => {
-                app.view = View::Library;
+                let artists = Artist::select_all(&app.pool).await?;
+                let tracks = Track::by_artist(&app.pool, &artists[0]).await?;
+                app.view = View::Library((
+                    StatefulList::from_vec(artists),
+                    StatefulList::from_vec(tracks),
+                ));
             }
             Key::Char('5') => {
                 let tracks = Track::select_all(&app.pool).await?;

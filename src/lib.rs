@@ -17,7 +17,6 @@ use rodio::{Decoder, OutputStream, Sink};
 use sqlx::SqlitePool;
 use std::fs::File;
 use std::io::BufReader;
-use tui::Terminal;
 
 pub struct App {
     pub view: view::View,
@@ -32,7 +31,10 @@ impl App {
             View::Track(list) => {
                 list.previous();
             }
-            _ => {}
+            View::Library(list) => {
+                let (list, _) = list;
+                list.previous();
+            }
         }
     }
 
@@ -41,7 +43,10 @@ impl App {
             View::Track(list) => {
                 list.next();
             }
-            _ => {}
+            View::Library(list) => {
+                let (list, _) = list;
+                list.next();
+            }
         }
     }
 
@@ -62,7 +67,10 @@ impl App {
             View::Track(list) => {
                 list.unselect();
             }
-            _ => {}
+            View::Library(list) => {
+                let (list, _) = list;
+                list.unselect();
+            }
         }
     }
 }

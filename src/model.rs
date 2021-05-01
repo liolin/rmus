@@ -4,7 +4,7 @@ use sqlx::{
     FromRow, Row, SqlitePool,
 };
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, FromRow)]
 pub struct Artist {
     pub id: i64,
     pub name: String,
@@ -59,6 +59,14 @@ impl Artist {
         };
 
         return Ok(a);
+    }
+
+    pub async fn select_all(pool: &SqlitePool) -> Result<Vec<Artist>> {
+        let all_artist = sqlx::query_as("SELECT id, name FROM artists;")
+            .fetch_all(pool)
+            .await?;
+
+        Ok(all_artist)
     }
 }
 
@@ -147,6 +155,17 @@ impl Track {
         .await?;
 
         Ok(all_tracks)
+    }
+
+    pub async fn by_artist(pool: &SqlitePool, artist: &Artist) -> Result<Vec<Track>> {
+        let tracks = sqlx::query_as(
+	    "SELECT trackId, title, albumId, album, artistId, artist, filePath FROM v_tracks WHERE artistId = ?;"
+	)
+	    .bind(artist.id)
+	    .fetch_all(pool)
+	    .await?;
+
+        Ok(tracks)
     }
 }
 
