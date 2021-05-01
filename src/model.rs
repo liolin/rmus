@@ -4,19 +4,19 @@ use sqlx::{
     FromRow, Row, SqlitePool,
 };
 
-#[derive(Debug, Hash, PartialEq, Eq, FromRow)]
+#[derive(Debug, Hash, PartialEq, Eq, FromRow, Clone)]
 pub struct Artist {
     pub id: i64,
     pub name: String,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Album {
     pub id: i64,
     pub name: String,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Track {
     pub id: i64,
     pub title: String,

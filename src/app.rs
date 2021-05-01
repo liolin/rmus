@@ -1,64 +1,42 @@
-use crate::{
-    player::Player,
-    ui::view::{self, View},
-    util::Events,
-};
+use crate::{player::Player, ui::view::ViewTrait, util::Events};
 use sqlx::SqlitePool;
 
-pub struct App<P: Player> {
-    pub view: view::View,
+pub struct App<T, P>
+where
+    T: tui::backend::Backend,
+    P: Player,
+{
+    pub view: Box<dyn ViewTrait<T>>,
     pub pool: SqlitePool,
     pub player: P,
     pub events: Events,
 }
 
-impl<P: Player> App<P> {
+impl<T, P> App<T, P>
+where
+    T: tui::backend::Backend,
+    P: Player,
+{
     pub fn previous(&mut self) {
-        match &mut self.view {
-            View::Track(list) => {
-                list.previous();
-            }
-            View::Library(list) => {
-                let (list, _) = list;
-                list.previous();
-            }
-        }
+        self.view.previous();
     }
 
     pub fn next(&mut self) {
-        match &mut self.view {
-            View::Track(list) => {
-                list.next();
-            }
-            View::Library(list) => {
-                let (list, _) = list;
-                list.next();
-            }
-        }
+        self.view.next();
     }
 
     pub fn select(&mut self) {
-        match &mut self.view {
-            View::Track(list) => {
-                if let Some(selected) = list.state.selected() {
-                    let track = &list.items[selected];
-                    self.player.play_new_track(&track.file_path);
-                }
-            }
-            _ => {}
+        if let Some(track) = self.view.current() {
+            self.player.play_new_track(&track.file_path);
         }
     }
 
     pub fn unselect(&mut self) {
-        match &mut self.view {
-            View::Track(list) => {
-                list.unselect();
-            }
-            View::Library(list) => {
-                let (list, _) = list;
-                list.unselect();
-            }
-        }
+        self.view.unselect();
+    }
+
+    pub fn change_focus(&mut self) {
+        self.view.change_focus();
     }
 
     pub fn toggle_pause(&mut self) {

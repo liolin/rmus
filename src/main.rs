@@ -13,13 +13,12 @@ use rmus::{
     app::App,
     model::{self, Album, Artist, Track},
     player::RodioPlayer,
-    ui::{
-        self,
-        view::{self, View},
-        widget::StatefulList,
-    },
+    ui::{self, view::LibraryView, view::TrackView, widget::StatefulList},
     util::Events,
 };
+
+const LIBRARY_VIEW: char = '1';
+const TRACK_VIEW: char = '5';
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
     let mut terminal = ui::init_view()?;
 
     let mut app = App {
-        view: View::Track(StatefulList::from_vec(tracks)),
+        view: Box::from(TrackView::new(StatefulList::from_vec(tracks))),
         pool,
         player: RodioPlayer::new(),
         events: Events::new(),
@@ -47,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     terminal.clear()?;
 
     loop {
-        terminal.draw(|f| view::update_view(f, &mut app))?;
+        terminal.draw(|f| app.view.render(f))?;
 
         match app.events.next()? {
             Key::Up => {
@@ -62,20 +61,23 @@ async fn main() -> anyhow::Result<()> {
             Key::Char('c') => {
                 app.toggle_pause();
             }
+            Key::Char('\t') => {
+                app.change_focus();
+            }
             Key::Char('q') => {
                 break;
             }
-            Key::Char('1') => {
+            Key::Char(LIBRARY_VIEW) => {
                 let artists = Artist::select_all(&app.pool).await?;
                 let tracks = Track::by_artist(&app.pool, &artists[0]).await?;
-                app.view = View::Library((
+                app.view = Box::new(LibraryView::new(
                     StatefulList::from_vec(artists),
                     StatefulList::from_vec(tracks),
                 ));
             }
-            Key::Char('5') => {
+            Key::Char(TRACK_VIEW) => {
                 let tracks = Track::select_all(&app.pool).await?;
-                app.view = View::Track(StatefulList::from_vec(tracks));
+                app.view = Box::new(TrackView::new(StatefulList::from_vec(tracks)));
             }
             Key::Char('\n') => {
                 app.select();

@@ -1519,7 +1519,6 @@ dependencies = [
  "anyhow",
  "async-std",
  "claxon",
- "cpal",
  "dotenv",
  "env_logger",
  "hex",
